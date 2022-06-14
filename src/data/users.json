@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "username": "Joshua William",
+    "profile_picture": "https://minimaltoolkit.com/images/randomdata/male/2.jpg"
+  },
+  {
+    "id": 2,
+    "username": "Nathanael Richard",
+    "profile_picture": "https://xsgames.co/randomusers/assets/avatars/male/46.jpg"
+  },
+  {
+    "id": 3,
+    "username": "Alexander Daud",
+    "profile_picture": "https://i.pinimg.com/originals/ae/ec/c2/aeecc22a67dac7987a80ac0724658493.jpg"
+  },
+  {
+    "id": 4,
+    "username": "Bambang Susanto",
+    "profile_picture": "https://www.gravatar.com/avatar/1b8fabaa8d66250a7049bdb9ecf44397?s=250&d=mm&r=x"
+  }
+]

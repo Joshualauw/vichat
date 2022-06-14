@@ -1,0 +1,26 @@
+[
+  {
+    "room_id": 1,
+    "user_id": 1,
+    "content": "Halo",
+    "send_at": "10.25 AM"
+  },
+  {
+    "room_id": 1,
+    "user_id": 1,
+    "content": "Halo Lex",
+    "send_at": "10.26 AM"
+  },
+  {
+    "room_id": 2,
+    "user_id": 2,
+    "content": "Ko Joshua Jago Coding",
+    "send_at": "10.40 AM"
+  },
+  {
+    "room_id": 3,
+    "user_id": 3,
+    "content": "Halo Nath",
+    "send_at": "09.10 PM"
+  }
+]
