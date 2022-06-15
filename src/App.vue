@@ -2,15 +2,22 @@
 import { onMounted, provide, ref } from "vue";
 import { onAuthStateChanged, getAuth } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, where } from "firebase/firestore";
+import barItem from "./data/barItem.json";
 import TheHeader from "./components/TheHeader.vue";
 import TheRoom from "./components/TheRoom.vue";
 import ChatRoom from "./components/ChatRoom.vue";
+import BarItem from "./components/BarItem.vue";
+import MessageIcon from "./assets/MessageIcon.svg";
+import UserAddIcon from "./assets/UserAddIcon.svg";
 
 const user = ref(null);
+provide("user", user);
+
 const rooms = ref([]);
 const chatroom = ref(null);
 const isLoading = ref(false);
 const filteredRooms = ref([]);
+const isSelected = ref(barItem[0].icon);
 
 const getAllRooms = async () => {
   const roomRef = collection(getFirestore(), "rooms");
@@ -29,14 +36,12 @@ const getAllRooms = async () => {
       return r;
     });
   });
-  // unsubscribeRoom();
 };
 
 onMounted(async () => {
   isLoading.value = true;
   filteredRooms.value = [];
   chatroom.value = null;
-
   //cek apakah ada user session dari firebase
   const unsubscribeAuth = onAuthStateChanged(getAuth(), async (currentUser) => {
     if (!currentUser) user.value = null;
@@ -67,7 +72,15 @@ const openChatRoom = async (room) => {
   chatroom.value = room;
 };
 
-provide("user", user);
+const selectBar = (icon) => {
+  isSelected.value = icon;
+  chatroom.value = null;
+};
+
+const getIconComponent = (icon) => {
+  if (icon == "MessageIcon") return MessageIcon;
+  else if (icon == "UserAddIcon") return UserAddIcon;
+};
 </script>
 
 <template>
@@ -75,8 +88,16 @@ provide("user", user);
     <the-header></the-header>
     <h1 v-if="!user" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-lg">Login to continue</h1>
     <div v-else class="absolute flex top-0 left-0 h-full w-full pt-16 bg-darkpurple">
+      <div class="w-14 h-full bg-purple">
+        <bar-item v-for="item in barItem" @clicked="selectBar(item.icon)" :is-selected="isSelected == item.icon">
+          <KeepAlive>
+            <component :is="getIconComponent(item.icon)" />
+          </KeepAlive>
+        </bar-item>
+      </div>
       <div class="overflow-y-auto w-full md:w-1/4 border-r-0 md:border-r-2 md:border-lightpurple">
         <the-room
+          v-if="isSelected == barItem[0].icon"
           v-for="room in filteredRooms"
           @clicked="openChatRoom(room)"
           :name="room.name"
