@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, provide, ref } from "vue";
 import { onAuthStateChanged, getAuth } from "firebase/auth";
-import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import barItem from "./data/barItem.json";
 import TheHeader from "./components/TheHeader.vue";
 import TheRoom from "./components/TheRoom.vue";
@@ -17,31 +17,35 @@ const rooms = ref([]);
 const chatroom = ref(null);
 const isLoading = ref(false);
 const filteredRooms = ref([]);
-const isSelected = ref(barItem[0].icon);
+const messages = ref([]);
+const icons = [
+  { name: "message", icon: MessageIcon },
+  { name: "user-add", icon: UserAddIcon },
+];
+const selectedIcon = ref(icons[0].name);
 
 const getAllRooms = async () => {
   const roomRef = collection(getFirestore(), "rooms");
-  const unsubscribeRoom = onSnapshot(roomRef, async (snapshot) => {
-    rooms.value = [];
-    snapshot.forEach((r) => rooms.value.push({ id: r.id, ...r.data() }));
-    //filter rooms berdasarkan yang dimiliki user saja
-    filteredRooms.value = rooms.value.filter((r) => r.participants.includes(user.value.id));
-    await filteredRooms.value.map(async (r) => {
-      if (r.isGroup) return r;
-      const senderId = r.participants.find((r) => r != user.value.id);
-      const userRef = doc(getFirestore(), "users", senderId);
-      const sender = await getDoc(userRef);
-      r.name = sender.data().username;
-      r.image = sender.data().profile_picture;
-      return r;
-    });
+  const snapshot = await getDocs(roomRef);
+  filteredRooms.value = [];
+  chatroom.value = null;
+  rooms.value = [];
+  snapshot.forEach((r) => rooms.value.push({ id: r.id, ...r.data() }));
+  //filter rooms berdasarkan yang dimiliki user saja
+  filteredRooms.value = rooms.value.filter((r) => r.participants.includes(user.value.id));
+  await filteredRooms.value.map(async (r) => {
+    if (r.isGroup) return r;
+    const senderId = r.participants.find((r) => r != user.value.id);
+    const userRef = doc(getFirestore(), "users", senderId);
+    const sender = await getDoc(userRef);
+    r.name = sender.data().username;
+    r.image = sender.data().profile_picture;
+    return r;
   });
 };
 
 onMounted(async () => {
   isLoading.value = true;
-  filteredRooms.value = [];
-  chatroom.value = null;
   //cek apakah ada user session dari firebase
   const unsubscribeAuth = onAuthStateChanged(getAuth(), async (currentUser) => {
     if (!currentUser) user.value = null;
@@ -56,30 +60,29 @@ onMounted(async () => {
 });
 
 const openChatRoom = async (room) => {
-  //fetch semua messages yang memiliki room id yang dipilih
-  const q = query(collection(getFirestore(), "messages"), where("room_id", "==", room.id));
-  const snapshot = await getDocs(q);
-  room.messages = [];
-  snapshot.forEach(async (msg) => {
-    const userRef = doc(getFirestore(), "users", msg.data().user_id);
-    const user = await getDoc(userRef);
-    room.messages.push({
-      user: { id: user.id, ...user.data() },
-      content: msg.data().content,
-      send_at: msg.data().send_at,
-    });
+  const roomRef = doc(getFirestore(), "rooms", room.id);
+  const unsubscribeRoom = onSnapshot(roomRef, (doc) => {
+    const room = rooms.value.find((r) => r.id == doc.id);
+    room.last_seen = doc.data().last_seen;
+    room.last_message = doc.data().last_message;
   });
   chatroom.value = room;
+  //fetch semua messages yang memiliki room id yang dipilih
+  const messageRef = collection(getFirestore(), "messages");
+  const q = query(messageRef, where("room_id", "==", room.id), orderBy("send_at"));
+  const unsubscribeMessages = onSnapshot(q, async (snapshot) => {
+    let temp = [];
+    messages.value = [];
+    snapshot.forEach((doc) => temp.push(doc));
+    for (let i = 0; i < temp.length; i++) {
+      messages.value.push({ id: temp[i].id, ...temp[i].data() });
+    }
+  });
 };
 
-const selectBar = (icon) => {
-  isSelected.value = icon;
+const switchTab = (icon) => {
+  selectedIcon.value = icon;
   chatroom.value = null;
-};
-
-const getIconComponent = (icon) => {
-  if (icon == "MessageIcon") return MessageIcon;
-  else if (icon == "UserAddIcon") return UserAddIcon;
 };
 </script>
 
@@ -89,15 +92,13 @@ const getIconComponent = (icon) => {
     <h1 v-if="!user" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-lg">Login to continue</h1>
     <div v-else class="absolute flex top-0 left-0 h-full w-full pt-16 bg-darkpurple">
       <div class="w-14 h-full bg-purple">
-        <bar-item v-for="item in barItem" @clicked="selectBar(item.icon)" :is-selected="isSelected == item.icon">
-          <KeepAlive>
-            <component :is="getIconComponent(item.icon)" />
-          </KeepAlive>
+        <bar-item v-for="icon in icons" @clicked="switchTab(icon.name)" :is-selected="selectedIcon == icon.name">
+          <component :is="icon.icon" />
         </bar-item>
       </div>
       <div class="overflow-y-auto w-full md:w-1/4 border-r-0 md:border-r-2 md:border-lightpurple">
         <the-room
-          v-if="isSelected == barItem[0].icon"
+          v-if="selectedIcon == icons[0].name"
           v-for="room in filteredRooms"
           @clicked="openChatRoom(room)"
           :name="room.name"
@@ -106,7 +107,13 @@ const getIconComponent = (icon) => {
           :last_seen="room.last_seen"
         ></the-room>
       </div>
-      <chat-room v-if="chatroom" :messages="chatroom.messages" :name="chatroom.name"></chat-room>
+      <chat-room
+        v-if="chatroom"
+        :messages="messages"
+        :room_image="chatroom.image"
+        :room_id="chatroom.id"
+        :room_name="chatroom.name"
+      ></chat-room>
     </div>
   </div>
 </template>
