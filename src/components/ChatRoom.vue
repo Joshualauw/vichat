@@ -1,26 +1,43 @@
 <script setup>
 import { addDoc, collection, deleteDoc, doc, getFirestore, updateDoc } from "@firebase/firestore";
-import { inject, onMounted, ref } from "vue";
+import { inject, ref } from "vue";
+import moment from "moment";
 
 const user = inject("user");
 const newMessage = ref("");
-const { room_id, room_name, room_image, messages } = defineProps(["room_id", "room_name", "room_image", "messages"]);
+const emits = defineEmits(["close"]);
+const props = defineProps(["room_id", "room_name", "room_image", "messages"]);
+
+const updateLastMessage = async () => {
+  const roomDoc = doc(getFirestore(), "rooms", props.room_id);
+  const lastData = props.messages[props.messages.length - 1];
+  if (!lastData) {
+    await updateDoc(roomDoc, {
+      last_message: "",
+      last_seen: "",
+    });
+  } else {
+    const time = new Date(0);
+    time.setUTCSeconds(lastData.send_at.seconds);
+    const last_seen = moment(time).format("H:mm A");
+    await updateDoc(roomDoc, {
+      last_message: lastData.content,
+      last_seen,
+    });
+  }
+};
 
 const sendMessage = async () => {
   if (newMessage.value == "") return;
   const messageRef = collection(getFirestore(), "messages");
-  const roomDoc = doc(getFirestore(), "rooms", room_id);
   const timestamp = new Date();
   await addDoc(messageRef, {
-    room_id,
+    room_id: props.room_id,
     user_id: user.value.id,
     send_at: timestamp,
     content: newMessage.value,
   });
-  await updateDoc(roomDoc, {
-    last_message: newMessage.value,
-    last_seen: timestamp.getHours() + ":" + timestamp.getMinutes(),
-  });
+  await updateLastMessage();
   newMessage.value = "";
 };
 
@@ -28,18 +45,34 @@ const unsendMessage = async (message) => {
   if (message.user_id == user.value.id) {
     const messageRef = doc(getFirestore(), "messages", message.id);
     await deleteDoc(messageRef);
+    await updateLastMessage();
   }
 };
 </script>
 
 <template>
-  <div class="relative w-full overflow-hidden hidden md:block md:w-3/4">
-    <div class="h-12 py-3 px-5 mb-4 flex items-center border-b border-lightpurple">
-      {{ room_name }}
+  <div class="fixed top-0 left-0 h-screen w-screen z-50 bg-darkpurple md:relative md:w-3/4 md:h-full overflow-hidden">
+    <div class="h-12 py-3 px-5 mb-4 flex items-center justify-between border-b border-lightpurple">
+      {{ props.room_name }}
+      <p class="text-lg block md:hidden text-white">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          @click="$emit('close')"
+          class="h-5 w-5 cursor-pointer"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </p>
     </div>
     <div class="overflow-y-auto h-[525px]">
       <div
-        v-for="message in messages"
+        v-for="message in props.messages"
         class="mx-3 mt-3 flex items-center"
         :class="{ 'justify-end': message.user_id == user.id }"
       >
