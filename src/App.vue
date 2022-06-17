@@ -21,8 +21,11 @@ import TheRoom from "./components/TheRoom.vue";
 import ChatRoom from "./components/ChatRoom.vue";
 import BarItem from "./components/BarItem.vue";
 import UserList from "./components/UserList.vue";
+import UserProfile from "./components/UserProfile.vue";
 import MessageIcon from "./assets/MessageIcon.svg";
 import UserAddIcon from "./assets/UserAddIcon.svg";
+import UserProfileIcon from "./assets/UserProfileIcon.svg";
+undefined;
 
 const user = ref(null);
 provide("user", user);
@@ -36,9 +39,11 @@ const messages = ref([]);
 let unsubscribeMessages = null;
 let unsubscribeAuth = null;
 let unsubscribeRoom = null;
+let unsubscribeUser = null;
 const icons = [
   { name: "message", icon: MessageIcon },
   { name: "user-add", icon: UserAddIcon },
+  { name: "user-profile", icon: UserProfileIcon },
 ];
 const selectedIcon = ref(icons[0].name);
 
@@ -60,9 +65,7 @@ const getUserList = async () => {
 const getAllRooms = async () => {
   chatroom.value = null;
   const roomRef = query(collection(getFirestore(), "rooms"));
-  if (unsubscribeRoom) {
-    unsubscribeRoom();
-  }
+  if (unsubscribeRoom) unsubscribeRoom();
   unsubscribeRoom = onSnapshot(roomRef, async (snapshot) => {
     rooms.value = [];
     snapshot.forEach((r) => rooms.value.push({ id: r.id, ...r.data() }));
@@ -83,16 +86,16 @@ const getAllRooms = async () => {
 
 onMounted(async () => {
   isLoading.value = true;
+  if (unsubscribeAuth) unsubscribeAuth();
   //cek apakah ada user session dari firebase
-  if (unsubscribeAuth) {
-    unsubscribeAuth();
-  }
   unsubscribeAuth = onAuthStateChanged(getAuth(), async (currentUser) => {
     if (!currentUser) user.value = null;
     else {
       const userRef = doc(getFirestore(), "users", currentUser.uid);
-      const userDoc = await getDoc(userRef);
-      user.value = { id: userDoc.id, ...userDoc.data() };
+      if (unsubscribeUser) unsubscribeUser();
+      unsubscribeUser = onSnapshot(userRef, async (doc) => {
+        user.value = { id: doc.id, ...doc.data() };
+      });
       await getAllRooms();
     }
   });
@@ -101,15 +104,13 @@ onMounted(async () => {
 
 const openChatRoom = async (room) => {
   isOpen.value = true;
+  chatroom.value = null;
   chatroom.value = room;
-  if (unsubscribeMessages) {
-    unsubscribeMessages();
-  }
+  if (unsubscribeMessages) unsubscribeMessages();
   //fetch semua messages yang memiliki room id yang dipilih
   const messageRef = collection(getFirestore(), "messages");
   const q = query(messageRef, where("room_id", "==", room.id), orderBy("send_at"));
   unsubscribeMessages = onSnapshot(q, async (snapshot) => {
-    console.log(room.id);
     let temp = [];
     messages.value = [];
     snapshot.forEach((doc) => temp.push(doc));
@@ -147,7 +148,8 @@ const switchTab = (icon) => {
           <component :is="icon.icon" />
         </bar-item>
       </div>
-      <div class="overflow-y-auto w-full md:w-1/4 border-r-0 md:border-r-2 md:border-lightpurple">
+      <user-profile v-if="selectedIcon == icons[2].name"></user-profile>
+      <div v-else class="overflow-y-auto w-full md:w-1/4 border-r-0 md:border-r-2 md:border-lightpurple">
         <keep-alive>
           <the-room
             v-if="selectedIcon == icons[0].name"
