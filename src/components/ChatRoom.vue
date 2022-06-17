@@ -11,20 +11,13 @@ const props = defineProps(["room_id", "room_name", "room_image", "messages"]);
 const updateLastMessage = async () => {
   const roomDoc = doc(getFirestore(), "rooms", props.room_id);
   const lastData = props.messages[props.messages.length - 1];
-  if (!lastData) {
-    await updateDoc(roomDoc, {
-      last_message: "",
-      last_seen: "",
-    });
-  } else {
-    const time = new Date(0);
-    time.setUTCSeconds(lastData.send_at.seconds);
-    const last_seen = moment(time).format("H:mm A");
-    await updateDoc(roomDoc, {
-      last_message: lastData.content,
-      last_seen,
-    });
-  }
+  const time = new Date(0);
+  time.setUTCSeconds(lastData.send_at.seconds);
+  const last_seen = moment(time).format("H:mm A");
+  await updateDoc(roomDoc, {
+    last_message: lastData != null ? lastData.content : "",
+    last_seen: lastData != null ? last_seen : "",
+  });
 };
 
 const sendMessage = async () => {

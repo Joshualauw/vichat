@@ -91,25 +91,19 @@ onMounted(async () => {
 });
 
 const openChatRoom = async (room) => {
-  if (room.participants.includes(user.value.id)) {
-    isOpen.value = true;
-    chatroom.value = room;
-    //fetch semua messages yang memiliki room id yang dipilih
-    const messageRef = collection(getFirestore(), "messages");
-    const q = query(messageRef, where("room_id", "==", room.id), orderBy("send_at"));
-    const unsubscribeMessages = onSnapshot(q, async (snapshot) => {
-      let temp = [];
-      messages.value = [];
-      snapshot.forEach((doc) => temp.push(doc));
-      for (let i = 0; i < temp.length; i++) {
-        messages.value.push({ id: temp[i].id, ...temp[i].data() });
-      }
-    });
-  }
-};
-
-const updateLastMessage = (detail) => {
-  chatroom.value;
+  isOpen.value = true;
+  chatroom.value = room;
+  //fetch semua messages yang memiliki room id yang dipilih
+  const messageRef = collection(getFirestore(), "messages");
+  const q = query(messageRef, where("room_id", "==", room.id), orderBy("send_at"));
+  const unsubscribeMessages = onSnapshot(q, async (snapshot) => {
+    let temp = [];
+    messages.value = [];
+    snapshot.forEach((doc) => temp.push(doc));
+    for (let i = 0; i < temp.length; i++) {
+      messages.value.push({ id: temp[i].id, ...temp[i].data() });
+    }
+  });
 };
 
 const addRoom = async (newUser) => {
@@ -135,7 +129,7 @@ const switchTab = (icon) => {
     <the-header></the-header>
     <h1 v-if="!user" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-lg">Login to continue</h1>
     <div v-else class="absolute flex top-0 left-0 h-full w-full pt-16 bg-darkpurple">
-      <div class="w-14 h-full bg-purple">
+      <div class="w-16 md:w-14 h-full bg-purple">
         <bar-item v-for="icon in icons" @clicked="switchTab(icon.name)" :is-selected="selectedIcon == icon.name">
           <component :is="icon.icon" />
         </bar-item>
@@ -162,7 +156,6 @@ const switchTab = (icon) => {
       </div>
       <chat-room
         v-if="chatroom && isOpen"
-        @messaged="updateLastMessage"
         @close="isOpen = false"
         :messages="messages"
         :room_image="chatroom.image"
