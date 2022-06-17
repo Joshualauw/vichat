@@ -33,6 +33,9 @@ const chatroom = ref(null);
 const isLoading = ref(false);
 const userList = ref([]);
 const messages = ref([]);
+let unsubscribeMessages = null;
+let unsubscribeAuth = null;
+let unsubscribeRoom = null;
 const icons = [
   { name: "message", icon: MessageIcon },
   { name: "user-add", icon: UserAddIcon },
@@ -56,8 +59,11 @@ const getUserList = async () => {
 
 const getAllRooms = async () => {
   chatroom.value = null;
-  const roomRef = query(collection(getFirestore(), "rooms"), orderBy("last_seen", "desc"));
-  const unsubscribeRoom = onSnapshot(roomRef, async (snapshot) => {
+  const roomRef = query(collection(getFirestore(), "rooms"));
+  if (unsubscribeRoom) {
+    unsubscribeRoom();
+  }
+  unsubscribeRoom = onSnapshot(roomRef, async (snapshot) => {
     rooms.value = [];
     snapshot.forEach((r) => rooms.value.push({ id: r.id, ...r.data() }));
     //filter rooms berdasarkan yang dimiliki user saja
@@ -78,7 +84,10 @@ const getAllRooms = async () => {
 onMounted(async () => {
   isLoading.value = true;
   //cek apakah ada user session dari firebase
-  const unsubscribeAuth = onAuthStateChanged(getAuth(), async (currentUser) => {
+  if (unsubscribeAuth) {
+    unsubscribeAuth();
+  }
+  unsubscribeAuth = onAuthStateChanged(getAuth(), async (currentUser) => {
     if (!currentUser) user.value = null;
     else {
       const userRef = doc(getFirestore(), "users", currentUser.uid);
@@ -93,10 +102,14 @@ onMounted(async () => {
 const openChatRoom = async (room) => {
   isOpen.value = true;
   chatroom.value = room;
+  if (unsubscribeMessages) {
+    unsubscribeMessages();
+  }
   //fetch semua messages yang memiliki room id yang dipilih
   const messageRef = collection(getFirestore(), "messages");
   const q = query(messageRef, where("room_id", "==", room.id), orderBy("send_at"));
-  const unsubscribeMessages = onSnapshot(q, async (snapshot) => {
+  unsubscribeMessages = onSnapshot(q, async (snapshot) => {
+    console.log(room.id);
     let temp = [];
     messages.value = [];
     snapshot.forEach((doc) => temp.push(doc));
