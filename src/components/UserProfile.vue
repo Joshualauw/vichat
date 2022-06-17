@@ -9,7 +9,6 @@ const isEdit = ref(false);
 const fileImage = ref(null);
 const fileData = ref(null);
 const newUsername = ref(user.value.username);
-const newProfilePicture = ref("");
 const editTitle = computed(() => (isEdit.value ? "Edit On" : "Edit Off"));
 
 const submitForm = async () => {
