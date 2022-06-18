@@ -3,6 +3,7 @@ import { onMounted, provide, ref } from "vue";
 import { onAuthStateChanged, getAuth } from "firebase/auth";
 import {
   addDoc,
+  arrayRemove,
   collection,
   doc,
   documentId,
@@ -54,6 +55,7 @@ const getUserList = async () => {
   const q = query(userRef, where(documentId(), "!=", user.value.id));
   const snapshot = await getDocs(q);
   snapshot.forEach((doc) => {
+    //add to list if room with that user and current user doesn't exist
     const roomExist = rooms.value.find(
       (r) => r.participants.includes(doc.id) && r.participants.includes(user.value.id)
     );
@@ -64,7 +66,6 @@ const getUserList = async () => {
 };
 
 const getAllRooms = async () => {
-  chatroom.value = null;
   const roomRef = query(collection(getFirestore(), "rooms"));
   if (unsubscribeRoom) unsubscribeRoom();
   unsubscribeRoom = onSnapshot(roomRef, async (snapshot) => {
@@ -81,6 +82,7 @@ const getAllRooms = async () => {
       r.isOnline = sender.data().isOnline;
       r.name = sender.data().username;
       r.image = sender.data().profile_picture;
+      r.isUnread = user.value.unreads.includes(r.id);
     }
     await getUserList();
   });
@@ -91,7 +93,7 @@ onMounted(async () => {
   unsubscribeAuth = onAuthStateChanged(getAuth(), async (currentUser) => {
     if (!currentUser) {
       if (user.value) {
-        //get last user instance if available
+        //detect if user recently logout and change status to offline
         const userRef = doc(getFirestore(), "users", user.value.id);
         await updateDoc(userRef, { isOnline: false });
       }
@@ -99,11 +101,12 @@ onMounted(async () => {
     } else {
       const userRef = doc(getFirestore(), "users", currentUser.uid);
       if (unsubscribeUser) unsubscribeUser();
-      unsubscribeUser = onSnapshot(userRef, async (doc) => {
+      unsubscribeUser = onSnapshot(userRef, (doc) => {
         user.value = { id: doc.id, ...doc.data() };
       });
       await updateDoc(userRef, { isOnline: true });
     }
+    //subscribe to users collection when profile or online status changes
     const userRef = collection(getFirestore(), "users");
     if (unsubscribeUsers) unsubscribeUsers();
     unsubscribeUsers = onSnapshot(userRef, async () => {
@@ -114,10 +117,14 @@ onMounted(async () => {
 
 const openChatRoom = async (room) => {
   isOpen.value = true;
-  chatroom.value = null;
+  const userRef = doc(getFirestore(), "users", user.value.id);
+  await updateDoc(userRef, {
+    unreads: arrayRemove(room.id),
+  });
   chatroom.value = room;
+  console.log(chatroom.value);
   if (unsubscribeMessages) unsubscribeMessages();
-  //fetch semua messages yang memiliki room id yang dipilih
+  //subscribe messages with this room id
   const messageRef = collection(getFirestore(), "messages");
   const q = query(messageRef, where("room_id", "==", room.id), orderBy("send_at", "desc"), limit(20));
   unsubscribeMessages = onSnapshot(q, async (snapshot) => {
@@ -170,6 +177,7 @@ const switchTab = (icon) => {
             :last_message="room.last_message"
             :last_seen="room.last_seen"
             :is-online="room.isOnline"
+            :is-unread="room.isUnread"
           ></the-room>
           <user-list
             v-else-if="selectedIcon == icons[1].name"
@@ -187,6 +195,7 @@ const switchTab = (icon) => {
         :room_image="chatroom.image"
         :room_id="chatroom.id"
         :room_name="chatroom.name"
+        :room-participants="chatroom.participants"
       ></chat-room>
     </div>
   </div>

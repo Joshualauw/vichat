@@ -1,12 +1,12 @@
 <script setup>
-import { addDoc, collection, deleteDoc, doc, getFirestore, updateDoc } from "@firebase/firestore";
+import { addDoc, arrayUnion, collection, deleteDoc, doc, getFirestore, updateDoc } from "@firebase/firestore";
 import { inject, ref } from "vue";
 import moment from "moment";
 
 const user = inject("user");
 const newMessage = ref("");
 const emits = defineEmits(["close"]);
-const props = defineProps(["room_id", "room_name", "room_image", "messages"]);
+const props = defineProps(["room_id", "room_name", "room_image", "roomParticipants", "messages"]);
 
 const updateLastMessage = async () => {
   const roomDoc = doc(getFirestore(), "rooms", props.room_id);
@@ -17,6 +17,11 @@ const updateLastMessage = async () => {
   await updateDoc(roomDoc, {
     last_message: lastData != null ? lastData.content : "",
     last_seen: lastData != null ? last_seen : "",
+  });
+  const senderId = props.roomParticipants.find((r) => r != user.value.id);
+  const userRef = doc(getFirestore(), "users", senderId);
+  await updateDoc(userRef, {
+    unreads: arrayUnion(props.room_id),
   });
 };
 
