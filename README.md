@@ -6,6 +6,6 @@ Feature:
 - Login via google
 - Change user profile
 
-- Online user status (to-do)
+- Online user status
 - Group chat (to-do)
-- Unread messages (to-do)
+- Unread messages
