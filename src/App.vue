@@ -12,6 +12,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  updateDoc,
   where,
 } from "firebase/firestore";
 
@@ -25,7 +26,6 @@ import UserProfile from "./components/UserProfile.vue";
 import MessageIcon from "./assets/MessageIcon.svg";
 import UserAddIcon from "./assets/UserAddIcon.svg";
 import UserProfileIcon from "./assets/UserProfileIcon.svg";
-undefined;
 
 const user = ref(null);
 provide("user", user);
@@ -40,6 +40,7 @@ let unsubscribeMessages = null;
 let unsubscribeAuth = null;
 let unsubscribeRoom = null;
 let unsubscribeUser = null;
+let unsubscribeUsers = null;
 const icons = [
   { name: "message", icon: MessageIcon },
   { name: "user-add", icon: UserAddIcon },
@@ -69,7 +70,7 @@ const getAllRooms = async () => {
   unsubscribeRoom = onSnapshot(roomRef, async (snapshot) => {
     rooms.value = [];
     snapshot.forEach((r) => rooms.value.push({ id: r.id, ...r.data() }));
-    //filter rooms berdasarkan yang dimiliki user saja
+    //filter rooms by user
     rooms.value = rooms.value.filter((r) => r.participants.includes(user.value.id));
     for (let i = 0; i < rooms.value.length; i++) {
       const r = rooms.value[i];
@@ -77,6 +78,7 @@ const getAllRooms = async () => {
       const senderId = r.participants.find((r) => r != user.value.id);
       const userRef = doc(getFirestore(), "users", senderId);
       const sender = await getDoc(userRef);
+      r.isOnline = sender.data().isOnline;
       r.name = sender.data().username;
       r.image = sender.data().profile_picture;
     }
@@ -87,17 +89,27 @@ const getAllRooms = async () => {
 onMounted(async () => {
   isLoading.value = true;
   if (unsubscribeAuth) unsubscribeAuth();
-  //cek apakah ada user session dari firebase
   unsubscribeAuth = onAuthStateChanged(getAuth(), async (currentUser) => {
-    if (!currentUser) user.value = null;
-    else {
+    if (!currentUser) {
+      if (user.value) {
+        //get last user instance if available
+        const userRef = doc(getFirestore(), "users", user.value.id);
+        await updateDoc(userRef, { isOnline: false });
+      }
+      user.value = null;
+    } else {
       const userRef = doc(getFirestore(), "users", currentUser.uid);
       if (unsubscribeUser) unsubscribeUser();
       unsubscribeUser = onSnapshot(userRef, async (doc) => {
         user.value = { id: doc.id, ...doc.data() };
       });
-      await getAllRooms();
+      await updateDoc(userRef, { isOnline: true });
     }
+    const userRef = collection(getFirestore(), "users");
+    if (unsubscribeUsers) unsubscribeUsers();
+    unsubscribeUsers = onSnapshot(userRef, async () => {
+      await getAllRooms();
+    });
   });
   isLoading.value = false;
 });
@@ -140,7 +152,7 @@ const switchTab = (icon) => {
 
 <template>
   <div v-if="!isLoading" class="text-gray-50 min-h-screen bg-darkpurple">
-    <the-header></the-header>
+    <the-header @profile-clicked="selectedIcon = icons[2].name"></the-header>
     <h1 v-if="!user" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-lg">Login to continue</h1>
     <div v-else class="absolute flex top-0 left-0 h-full w-full pt-16 bg-darkpurple">
       <div class="w-16 md:w-14 h-full bg-purple">
@@ -159,6 +171,7 @@ const switchTab = (icon) => {
             :image="room.image"
             :last_message="room.last_message"
             :last_seen="room.last_seen"
+            :is-online="room.isOnline"
           ></the-room>
           <user-list
             v-else-if="selectedIcon == icons[1].name"

@@ -4,6 +4,7 @@ import { GoogleAuthProvider, signInWithPopup, getAuth, signOut } from "firebase/
 import { doc, collection, getFirestore, setDoc, getDoc } from "firebase/firestore";
 
 const user = inject("user");
+const emits = defineEmits(["profileClicked"]);
 
 const login = async () => {
   const provider = new GoogleAuthProvider();
@@ -27,7 +28,7 @@ const logout = async () => {
   <div class="p-4 h-16 fixed z-10 w-full flex justify-between items-center shadow-sm shadow-graypurple bg-purple">
     <h1 class="text-xl tracking-wider font-semibold">Vichat</h1>
     <div class="flex items-center">
-      <div v-if="user" class="flex items-center">
+      <div v-if="user" @click="$emit('profileClicked')" class="flex items-center cursor-pointer">
         <img :src="user.profile_picture" :alt="user.username" class="w-7 h-7 rounded-full mr-2" />
         <p class="mr-4">{{ user.username }}</p>
       </div>
