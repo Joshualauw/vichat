@@ -63,7 +63,7 @@ const unsendMessage = async (message) => {
         </svg>
       </p>
     </div>
-    <div class="overflow-y-auto h-[525px]">
+    <div class="overflow-y-auto h-[525px] pb-5">
       <div
         v-for="message in props.messages"
         class="mx-3 mt-3 flex items-center"

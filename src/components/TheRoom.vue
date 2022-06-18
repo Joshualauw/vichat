@@ -12,11 +12,9 @@ const emit = defineEmits(["clicked"]);
     <div class="relative">
       <img :src="props.image" alt="" class="w-12 h-12 rounded-full" />
       <div
-        class="absolute top-9 left-9 w-4 h-4 rounded-full border-white border-2"
+        class="absolute top-9 left-9 w-3 h-3 rounded-full border-white border-2"
         :class="{ 'bg-green-500': props.isOnline, 'bg-gray-500': !props.isOnline }"
-      >
-        .
-      </div>
+      ></div>
     </div>
     <div>
       <p class="font-semibold">{{ props.name }}</p>

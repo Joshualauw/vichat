@@ -9,6 +9,7 @@ import {
   getDoc,
   getDocs,
   getFirestore,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -33,7 +34,6 @@ provide("user", user);
 const rooms = ref([]);
 const isOpen = ref(true);
 const chatroom = ref(null);
-const isLoading = ref(false);
 const userList = ref([]);
 const messages = ref([]);
 let unsubscribeMessages = null;
@@ -87,7 +87,6 @@ const getAllRooms = async () => {
 };
 
 onMounted(async () => {
-  isLoading.value = true;
   if (unsubscribeAuth) unsubscribeAuth();
   unsubscribeAuth = onAuthStateChanged(getAuth(), async (currentUser) => {
     if (!currentUser) {
@@ -111,7 +110,6 @@ onMounted(async () => {
       await getAllRooms();
     });
   });
-  isLoading.value = false;
 });
 
 const openChatRoom = async (room) => {
@@ -121,11 +119,11 @@ const openChatRoom = async (room) => {
   if (unsubscribeMessages) unsubscribeMessages();
   //fetch semua messages yang memiliki room id yang dipilih
   const messageRef = collection(getFirestore(), "messages");
-  const q = query(messageRef, where("room_id", "==", room.id), orderBy("send_at"));
+  const q = query(messageRef, where("room_id", "==", room.id), orderBy("send_at", "desc"), limit(20));
   unsubscribeMessages = onSnapshot(q, async (snapshot) => {
     let temp = [];
     messages.value = [];
-    snapshot.forEach((doc) => temp.push(doc));
+    snapshot.forEach((doc) => temp.unshift(doc));
     for (let i = 0; i < temp.length; i++) {
       messages.value.push({ id: temp[i].id, ...temp[i].data() });
     }
@@ -151,7 +149,7 @@ const switchTab = (icon) => {
 </script>
 
 <template>
-  <div v-if="!isLoading" class="text-gray-50 min-h-screen bg-darkpurple">
+  <div class="text-gray-50 min-h-screen bg-darkpurple">
     <the-header @profile-clicked="selectedIcon = icons[2].name"></the-header>
     <h1 v-if="!user" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-lg">Login to continue</h1>
     <div v-else class="absolute flex top-0 left-0 h-full w-full pt-16 bg-darkpurple">
@@ -193,3 +191,25 @@ const switchTab = (icon) => {
     </div>
   </div>
 </template>
+
+<style>
+::-webkit-scrollbar {
+  width: 12px;
+  height: 100%;
+}
+
+::-webkit-scrollbar-track {
+  border-radius: 100vh;
+  background: #5b4b8a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4c3575;
+  border-radius: 100vh;
+  border: 3px solid #4c3575;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7858a6;
+}
+</style>
