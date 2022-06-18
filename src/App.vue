@@ -122,7 +122,6 @@ const openChatRoom = async (room) => {
     unreads: arrayRemove(room.id),
   });
   chatroom.value = room;
-  console.log(chatroom.value);
   if (unsubscribeMessages) unsubscribeMessages();
   //subscribe messages with this room id
   const messageRef = collection(getFirestore(), "messages");
